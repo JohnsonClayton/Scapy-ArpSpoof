@@ -6,12 +6,20 @@ Steps:
 
 '''
 import argparse
-import scapy
+from scapy.all import Ether, ARP, srp
 import threading
 
 def get_mac_address(ip):
 	#Make ARP Request to get MAC addy for given ip
 	print(f'Making ARP Request for {ip}')
+	
+	arp_pkt = Ether('ff:ff:ff:ff:ff:ff')/ARP(pdst=ip)
+	response, we = srp(Ether(dst='ff:ff:ff:ff:ff:ff')/ARP(pdst=ip), timeout=10, verbose=0)
+	mac = None
+	if response:
+		#print(response[0][1].src)
+		mac = response[0][1].src
+	print(f'{ip} => {mac}')
 
 def clean_ip(addr):
 	#print(f'Cleaning {addr}')
