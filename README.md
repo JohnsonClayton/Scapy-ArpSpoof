@@ -4,5 +4,6 @@
 - [X] Acquire MAC addresses through ARP requests
 - [X] Poison ARP Cache  
 - [X] Receive Packets  
-- [ ] Send Packets  
-- [ ] Receive, Print, then Send packets to original destination
+- [X] Send Packets  
+- [X] Receive, Print, then Send packets to original destination
+
